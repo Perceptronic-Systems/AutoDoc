@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import ollama
 import os
 import tomllib
@@ -5,6 +6,7 @@ from git import Repo
 import shutil
 
 model = "gemma4:e4b"
+model_context = 16384
 api = "http://127.0.0.1:11434"
 base_dir = os.path.dirname(os.path.abspath(__file__))
 github_repo = "https://github.com/Perceptronic-Systems/AutoDoc"
@@ -24,6 +26,10 @@ if os.path.exists(config_path):
         config = tomllib.load(f)
     try:
         api = config['ollama']['host_address']
+        model_context = config['ollama']['model_context']
+        src_dir = os.path.exapanduser(config['repository']['repo_dir'])
+        github_repo = config['repository']['link']
+        doc_dir = os.path.expanduser(config['output']['output_dir'])
     except Exception as e:
         print("Could not find attribute in config")
         print(e)
