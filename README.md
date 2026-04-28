@@ -8,7 +8,7 @@ Install the python libraries from your virtual environment using `pip install -r
 
 This library requires ollama in order to work.
 
-After these requirements are met, you can either create a config file at `~/.config/AutoDoc/config.toml` to control the behavior of AutoDoc, or customize the existing code base in order to achieve the desired results.
+After these requirements are met, you can either create a config file at `~/.config/autodoc/config.toml` to control the behavior of AutoDoc, or customize the existing code base in order to achieve the desired results.
 
 Here is an example config file:
 ```
