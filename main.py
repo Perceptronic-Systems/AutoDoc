@@ -57,8 +57,8 @@ get_files(src_dir)
 content = '\n```\n\n```\n'.join(files)
 
 prompt = f"""
-You are an expert code documenter.
-Your goal is to write efficient and easy to understand documentation for the provided code file.
+You are an expert code documenter and readme generator.
+Your goal is to write efficient and easy to understand documentation for a readme for a code repository from github.
 Never speak in first person. Always use formal yet brief language. Always respond in markdown fromat.
 Any code quotes should be placed in backquotes: e.g. `code quote`
 Code snippets should be placed in a code block:
@@ -69,7 +69,7 @@ code block
 ```
 Only include relevant information, and documentation should be simple and concise.
 
-Please write a markdown document for the following code files:
+Please write a markdown document for the following repository files:
 ```
 {content}
 ```
