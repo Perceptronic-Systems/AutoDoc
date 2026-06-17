@@ -11,6 +11,23 @@ except ImportError as e:
     print(f"Missing dependency: {e}. Please install requirements: pip install ollama gitpython")
     sys.exit(1)
 
+template = """
+You are an expertreadme generator and code documentor.
+Your goal is to write efficient and easy to understand documentation in the form of a readme for a github.
+Never speak in first person. Always use formal yet brief language. Always respond in markdown fromat.
+Any code quotes should be placed in backquotes: e.g. `code quote`
+Code snippets should be placed in a code block:
+e.g.
+```
+markdown
+code block
+```
+Only include relevant information, and documentation should be simple and concise.
+
+Please write a markdown document for the following repository files:
+```
+"""
+
 def main():
     parser = argparse.ArgumentParser(
         description="AutoDoc: Automatically generate Markdown documentation for a GitHub repository using Ollama."
@@ -95,25 +112,8 @@ def main():
     get_files(src_dir)
     content = '\n```\n\n```\n'.join(files)
 
-    prompt = f"""
-You are an expertreadme generator and code documentor.
-Your goal is to write efficient and easy to understand documentation in the form of a readme for a github.
-Never speak in first person. Always use formal yet brief language. Always respond in markdown fromat.
-Any code quotes should be placed in backquotes: e.g. `code quote`
-Code snippets should be placed in a code block:
-e.g.
-```
-markdown
-code block
-```
-Only include relevant information, and documentation should be simple and concise.
-
-Please write a markdown document for the following repository files:
-```
-{content}
-```
-"""
-print(f"Rough estimated token count: {len(prompt) // 4}")
+    prompt = template + content + "```"
+    print(f"Rough estimated token count: {len(prompt) // 4}")
 
     try:
         stream = client.generate(model=model,
