@@ -12,7 +12,6 @@ except ImportError as e:
     sys.exit(1)
 
 def main():
-    # 1. Setup Argument Parser
     parser = argparse.ArgumentParser(
         description="AutoDoc: Automatically generate Markdown documentation for a GitHub repository using Ollama."
     )
@@ -20,17 +19,18 @@ def main():
     parser.add_argument("output", nargs="?", default=None, help="The output path for the generated markdown file.")
     args = parser.parse_args()
 
-    # 2. Default Configuration
+    # Dynamic Defaults
     model = "gemma4:e2b"
     model_context = 32768
     api = "http://127.0.0.1:11434"
-    base_dir = os.path.dirname(os.path.abspath(__file__))
     
+    # FIX: Use user's cache directory instead of script's installation directory
+    cache_dir = os.path.expanduser("~/.cache/autodoc")
     github_repo = args.repo if args.repo else "https://github.com/Perceptronic-Systems/AutoDoc"
-    src_dir = os.path.join(base_dir, "source") 
-    doc_dir = args.output if args.output else os.path.join(base_dir, "generated_doc.md")
+    src_dir = os.path.join(cache_dir, "source") 
+    doc_dir = args.output if args.output else os.path.expanduser("~/generated_doc.md")
 
-    # 3. Load Config File (Overriding defaults, but NOT CLI arguments)
+    # Load Config File (Overriding defaults, but NOT CLI arguments)
     config_path = os.path.expanduser("~/.config/autodoc/config.toml")
     if os.path.exists(config_path):
         with open(config_path, 'rb') as f:
@@ -40,7 +40,7 @@ def main():
             model_context = config['ollama'].get('model_context', model_context)
             if not args.repo:
                 github_repo = config['repository'].get('link', github_repo)
-            if not args.repo: # if repo config defines a specific local dir
+            if not args.repo: 
                 src_dir = os.path.expanduser(config['repository'].get('repo_dir', src_dir))
             if not args.output:
                 doc_dir = os.path.expanduser(config['output'].get('output_dir', doc_dir))
@@ -48,7 +48,6 @@ def main():
             print("Warning: Could not parse all attributes from config file.")
             print(e)
 
-    # Ensure we actually have a repository to work with
     if not github_repo:
         print("Error: No repository specified via arguments or config.")
         sys.exit(1)
@@ -56,7 +55,8 @@ def main():
     ignore = ['.gitignore', '.git', 'LICENSE', 'package.json', 'package-lock.json', 'vite-config.json', '__pycache__', 'node_modules']
     accepted_types = ['.txt', '.pdf', '.cpp', '.py', '.js', '.html', '.css', '.md', '.json', '.toml', '.yml', '.yaml', '.xml', '.sh', '.cs', '.cc', '.cxx', '.hpp', '.h', '.ts', '.tsx', '.go', '.php', '.rb']
 
-    # 4. Clone Repository
+    # Ensure cache directory structures exist safely
+    os.makedirs(os.path.dirname(src_dir), exist_ok=True)
     if os.path.exists(src_dir):
         shutil.rmtree(src_dir)
     
@@ -131,7 +131,6 @@ print(f"Rough estimated token count: {len(prompt) // 4}")
             print(token, end='', flush=True)
             generated += token
 
-        # Ensure output directory exists if nested
         output_parent = os.path.dirname(os.path.abspath(doc_dir))
         os.makedirs(output_parent, exist_ok=True)
 
