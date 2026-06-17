@@ -26,17 +26,24 @@ for cmd in git python3 pip3; do
     fi
 done
 
-echo "Installing/Updating required Python packages..."
-pip3 install --user --upgrade ollama gitpython > /dev/null
+VENV_DIR="$HOME/.local/share/autodoc/venv"
+echo "Setting up isolated Python environment in $VENV_DIR..."
+
+mkdir -p "$HOME/.local/share/autodoc"
+python3 -m venv "$VENV_DIR"
+
+"$VENV_DIR/bin/pip" install --upgrade pip > /dev/null
+"$VENV_DIR/bin/pip" install ollama gitpython > /dev/null
 
 TMP_DIR=$(mktemp -d)
 echo "Downloading latest version..."
-
 git clone --depth 1 "$REPO_URL" "$TMP_DIR" > /dev/null
 
 echo "Installing executable to $INSTALL_DIR/$BINARY_NAME..."
 cp "$TMP_DIR/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
+
+sed -i "1s|.*|#!$VENV_DIR/bin/python|" "$INSTALL_DIR/$BINARY_NAME"
 
 if [ ! -f "$CONFIG_DIR/config.toml" ]; then
     echo "Initializing default configuration..."
