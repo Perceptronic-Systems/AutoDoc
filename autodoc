@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+import os
+import shutil
+import tomllib
+import argparse
+import sys
+try:
+    import ollama
+    from git import Repo
+except ImportError as e:
+    print(f"Missing dependency: {e}. Please install requirements: pip install ollama gitpython")
+    sys.exit(1)
+
+def main():
+    # 1. Setup Argument Parser
+    parser = argparse.ArgumentParser(
+        description="AutoDoc: Automatically generate Markdown documentation for a GitHub repository using Ollama."
+    )
+    parser.add_argument("repo", nargs="?", default=None, help="The GitHub repository URL to clone.")
+    parser.add_argument("output", nargs="?", default=None, help="The output path for the generated markdown file.")
+    args = parser.parse_args()
+
+    # 2. Default Configuration
+    model = "gemma4:e2b"
+    model_context = 32768
+    api = "http://127.0.0.1:11434"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    github_repo = args.repo if args.repo else "https://github.com/Perceptronic-Systems/AutoDoc"
+    src_dir = os.path.join(base_dir, "source") 
+    doc_dir = args.output if args.output else os.path.join(base_dir, "generated_doc.md")
+
+    # 3. Load Config File (Overriding defaults, but NOT CLI arguments)
+    config_path = os.path.expanduser("~/.config/autodoc/config.toml")
+    if os.path.exists(config_path):
+        with open(config_path, 'rb') as f:
+            config = tomllib.load(f)
+        try:
+            api = config['ollama'].get('host_address', api)
+            model_context = config['ollama'].get('model_context', model_context)
+            if not args.repo:
+                github_repo = config['repository'].get('link', github_repo)
+            if not args.repo: # if repo config defines a specific local dir
+                src_dir = os.path.expanduser(config['repository'].get('repo_dir', src_dir))
+            if not args.output:
+                doc_dir = os.path.expanduser(config['output'].get('output_dir', doc_dir))
+        except Exception as e:
+            print("Warning: Could not parse all attributes from config file.")
+            print(e)
+
+    # Ensure we actually have a repository to work with
+    if not github_repo:
+        print("Error: No repository specified via arguments or config.")
+        sys.exit(1)
+
+    ignore = ['.gitignore', '.git', 'LICENSE', 'package.json', 'package-lock.json', 'vite-config.json', '__pycache__', 'node_modules']
+    accepted_types = ['.txt', '.pdf', '.cpp', '.py', '.js', '.html', '.css', '.md', '.json', '.toml', '.yml', '.yaml', '.xml', '.sh', '.cs', '.cc', '.cxx', '.hpp', '.h', '.ts', '.tsx', '.go', '.php', '.rb']
+
+    # 4. Clone Repository
+    if os.path.exists(src_dir):
+        shutil.rmtree(src_dir)
+    
+    print(f"Cloning {github_repo} into {src_dir}...")
+    try:
+        Repo.clone_from(github_repo, src_dir)
+    except Exception as e:
+        print(f"Error cloning repository: {e}")
+        sys.exit(1)
+     
+    print(f"Ollama API: {api}")
+    client = ollama.Client(host=api)
+
+    files = []
+
+    def get_files(directory):
+        for file in os.listdir(directory):
+            proceed = True
+            path = os.path.join(directory, file)
+            if (not file.startswith('.') and '.' in file):
+                if not ('.' + file.split('.')[-1]) in accepted_types:
+                    proceed = False
+            if file.startswith('.git') or file in ignore:
+                proceed = False
+            if proceed:
+                if os.path.isdir(path):
+                    get_files(path)
+                elif os.path.isfile(path) and file not in ignore:
+                    try:
+                        with open(path, 'r', encoding='utf-8') as f:
+                            text = f.read()
+                        files.append(file + '\n' + text)
+                    except Exception:
+                        print(f"Error while decoding utf-8 in file '{file}'")
+
+    get_files(src_dir)
+    content = '\n```\n\n```\n'.join(files)
+
+    prompt = f"""
+You are an expertreadme generator and code documentor.
+Your goal is to write efficient and easy to understand documentation in the form of a readme for a github.
+Never speak in first person. Always use formal yet brief language. Always respond in markdown fromat.
+Any code quotes should be placed in backquotes: e.g. `code quote`
+Code snippets should be placed in a code block:
+e.g.
+```
+markdown
+code block
+```
+Only include relevant information, and documentation should be simple and concise.
+
+Please write a markdown document for the following repository files:
+```
+{content}
+```
+"""
+print(f"Rough estimated token count: {len(prompt) // 4}")
+
+    try:
+        stream = client.generate(model=model,
+                                 prompt=prompt,
+                                 stream=True,
+                                 options={
+                                     'num_ctx': model_context,
+                                     'show_think': False 
+                                 })
+
+        print("        Generated: \n")
+        generated = ""
+        for chunk in stream:
+            token = chunk['response']
+            print(token, end='', flush=True)
+            generated += token
+
+        # Ensure output directory exists if nested
+        output_parent = os.path.dirname(os.path.abspath(doc_dir))
+        os.makedirs(output_parent, exist_ok=True)
+
+        with open(doc_dir, 'w', encoding='utf-8') as f:
+            f.write(generated)
+        print(f"\n\n        Done! Documentation saved to {doc_dir}")
+
+    except Exception as e:
+        print(f"\nAn error occurred during generation: {e}")
+
+if __name__ == "__main__":
+    main()
