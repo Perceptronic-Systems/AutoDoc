@@ -6,6 +6,9 @@ import argparse
 import sys
 try:
     import ollama
+    from pydantic import BaseModel, Field
+    from typing import List
+    import json
     from git import Repo
 except ImportError as e:
     print(f"Missing dependency: {e}. Please install requirements: pip install ollama gitpython")
@@ -46,6 +49,7 @@ def AutoDoc(link, output_path):
         try:
             api = config['ollama'].get('host_address', api)
             model_context = config['ollama'].get('model_context', model_context)
+            model = config['ollama'].get('model', model)
             if not args.repo:
                 github_repo = config['repository'].get('link', github_repo)
             if not args.repo: 
@@ -131,10 +135,111 @@ def AutoDoc(link, output_path):
     except Exception as e:
         print(f"\nAn error occurred during generation: {e}")
 
-def Secondary(path, output_path):
-    print(f"Executing secondary functionality...")
-    print(f"Input path: {path}")
-    print(f"Output path: {output_path}")
+
+def Subdivide(path, output_path):
+    class FileItem(BaseModel):
+        name: str = Field(description="The name of the file, including extension if applicable.")
+        body: str = Field(description="The full code content of the file.")
+
+    class FileExport(BaseModel):
+        files: List[FileItem]
+
+    model = "gemma4:e2b"
+    model_context = 32768
+    api = "http://127.0.0.1:11434"
+    
+    cache_dir = os.path.expanduser("~/.cache/codeforge")
+    src_dir = os.path.join(cache_dir, "source") 
+    doc_dir = output_path if output_path else os.path.expanduser("~/subdivided_code")
+
+    config_path = os.path.expanduser("~/.config/codeforge/config.toml")
+    if os.path.exists(config_path):
+        with open(config_path, 'rb') as f:
+            config = tomllib.load(f)
+        try:
+            api = config['ollama'].get('host_address', api)
+            model_context = config['ollama'].get('model_context', model_context)
+            model = config['ollama'].get('model', model)
+        except Exception as e:
+            print("Warning: Could not parse all attributes from config file.")
+            print(e)
+
+
+    print(f"Ollama API: {api}")
+    client = ollama.Client(host=api)
+
+    if not os.path.exists(path):
+        print(f"Error: Input path '{path}' does not exist.")
+        sys.exit(1)
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            source_code_content = f.read()
+    except Exception as e:
+        print(f"Error reading input file '{path}': {e}")
+        sys.exit(1)
+
+    prompt = (
+        "You are an expert software architect. Your task is to take the provided monolithic "
+        "source code file and subdivide it into a logical, modular structure of multiple files.\n"
+        "Analyze the code, split classes, functions, or modules into separate files, and preserve "
+        "all logic intact. Ensure proper import statements are added so the files can work together.\n\n"
+        "Here is the source code to subdivide:\n"
+        f"```\n{source_code_content}\n```"
+    )
+
+    try:
+        stream = client.chat(
+            model=model,
+            messages=[
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            stream=True,
+            format=FileExport.model_json_schema(),
+            options={
+                'temperature': 0,
+                'num_ctx': model_context
+            }
+        )
+        
+        full_response_text = ""
+        print("        Generating Subdivided Code: \n")
+        
+        for chunk in stream:
+            token = chunk['message']['content']
+            print(token, end="", flush=True)
+            full_response_text += token
+
+        print("\n\nParsing structured JSON and writing files...")
+        parsed_data = json.loads(full_response_text)
+        file_list = parsed_data.get('files', [])
+        
+        for file in file_list:
+            file_name = file.get('name')
+            file_body = file.get('body')
+
+            if not file_name:
+                continue
+
+            final_file_path = os.path.normpath(os.path.join(doc_dir, file_name))
+            file_dir = os.path.dirname(final_file_path)
+            
+            if file_dir and not os.path.exists(file_dir):
+                os.makedirs(file_dir, exist_ok=True)
+                print(f"📁 Created directory: {file_dir}")
+
+            with open(final_file_path, 'w', encoding='utf-8') as f:
+                f.write(file_body)
+                
+            print(f"💾 Written: {final_file_path}")
+            
+    except Exception as e:
+        print(f"\nAn error occurred during generation: {e}")
+
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -151,17 +256,17 @@ def main():
                                 help="The output path for the generated markdown file.")
 
     # SECONDARY
-    secondary_parser = subparsers.add_parser("secondary", help="Execute secondary tool logic.")
-    secondary_parser.add_argument("path", help="The input file or directory path.")
-    secondary_parser.add_argument("output_path", help="The output path target.")
+    subdivie_parser = subparsers.add_parser("subdivide", help="Execute secondary tool logic.")
+    subdivie_parser.add_argument("path", help="The input file or directory path.")
+    subdivie_parser.add_argument("output_path", help="The output path target.")
 
     args = parser.parse_args()
 
     # ROUTING
     if args.command == "autodoc":
         AutoDoc(args.repo, args.output)
-    elif args.command == "secondary":
-        Secondary(args.path, args.output_path)
+    elif args.command == "subdivide":
+        Subdivide(args.path, args.output_path)
 
     
 
