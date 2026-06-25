@@ -183,7 +183,7 @@ def Subdivide(path, output_path):
         "You are an expert software architect. Your task is to take the provided monolithic "
         "source code file and subdivide it into a logical, modular structure of multiple files.\n"
         "Analyze the code, split classes, functions, or modules into separate files, and preserve "
-        "all logic intact. Ensure proper import statements are added so the files can work together.\n\n"
+        "all logic intact. The generated code should function the same as the original, and the collective code-base should be able to be executed via the original source file name.\nEnsure proper import statements are added so the files can work together.\n\n"
         "Here is the source code to subdivide:\n"
         f"```\n{source_code_content}\n```"
     )
