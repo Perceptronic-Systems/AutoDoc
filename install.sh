@@ -4,11 +4,11 @@ set -e
 
 REPO_URL="https://github.com/Perceptronic-Systems/AutoDoc"
 INSTALL_DIR="$HOME/.local/bin"
-CONFIG_DIR="$HOME/.config/autodoc"
-BINARY_NAME="autodoc"
+CONFIG_DIR="$HOME/.config/codeforge"
+BINARY_NAME="codeforge"
 
 echo "========================================="
-echo "       AutoDoc Installer / Updater       "
+echo "       CodeForge Installer / Updater       "
 echo "========================================="
 
 mkdir -p "$INSTALL_DIR"
@@ -26,10 +26,10 @@ for cmd in git python3 pip3; do
     fi
 done
 
-VENV_DIR="$HOME/.local/share/autodoc/venv"
+VENV_DIR="$HOME/.local/share/codeforge/venv"
 echo "Setting up isolated Python environment in $VENV_DIR..."
 
-mkdir -p "$HOME/.local/share/autodoc"
+mkdir -p "$HOME/.local/share/codeforge"
 python3 -m venv "$VENV_DIR"
 
 "$VENV_DIR/bin/pip" install --upgrade pip > /dev/null
@@ -56,7 +56,7 @@ model_context = 32768
 
 [repository]
 link = ""
-repo_dir = "~/.cache/autodoc/source"
+repo_dir = "~/.cache/codeforge/source"
 
 [output]
 output_dir = "~/generated_doc.md"
@@ -66,6 +66,6 @@ fi
 rm -rf "$TMP_DIR"
 
 echo "-----------------------------------------"
-echo " Success! AutoDoc is installed/updated."
+echo " Success! CodeForge is installed/updated."
 echo " Try running: $BINARY_NAME --help"
 echo "========================================="
