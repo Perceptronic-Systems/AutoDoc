@@ -28,27 +28,18 @@ Please write a markdown document for the following repository files:
 ```
 """
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="AutoDoc: Automatically generate Markdown documentation for a GitHub repository using Ollama."
-    )
-    parser.add_argument("repo", nargs="?", default=None, help="The GitHub repository URL to clone.")
-    parser.add_argument("output", nargs="?", default=None, help="The output path for the generated markdown file.")
-    args = parser.parse_args()
-
+def AutoDoc(link, output_path):
     # Dynamic Defaults
     model = "gemma4:e2b"
     model_context = 32768
     api = "http://127.0.0.1:11434"
     
-    # FIX: Use user's cache directory instead of script's installation directory
-    cache_dir = os.path.expanduser("~/.cache/autodoc")
-    github_repo = args.repo if args.repo else "https://github.com/Perceptronic-Systems/AutoDoc"
+    cache_dir = os.path.expanduser("~/.cache/codeforge")
+    github_repo = link if link else "https://github.com/Perceptronic-Systems/CodeForge"
     src_dir = os.path.join(cache_dir, "source") 
-    doc_dir = args.output if args.output else os.path.expanduser("~/generated_doc.md")
+    doc_dir = output_path if output_path else os.path.expanduser("~/generated_doc.md")
 
-    # Load Config File (Overriding defaults, but NOT CLI arguments)
-    config_path = os.path.expanduser("~/.config/autodoc/config.toml")
+    config_path = os.path.expanduser("~/.config/codeforge/config.toml")
     if os.path.exists(config_path):
         with open(config_path, 'rb') as f:
             config = tomllib.load(f)
@@ -72,7 +63,6 @@ def main():
     ignore = ['.gitignore', '.git', 'LICENSE', 'package.json', 'package-lock.json', 'vite-config.json', '__pycache__', 'node_modules']
     accepted_types = ['.txt', '.pdf', '.cpp', '.py', '.js', '.html', '.css', '.md', '.json', '.toml', '.yml', '.yaml', '.xml', '.sh', '.cs', '.cc', '.cxx', '.hpp', '.h', '.ts', '.tsx', '.go', '.php', '.rb']
 
-    # Ensure cache directory structures exist safely
     os.makedirs(os.path.dirname(src_dir), exist_ok=True)
     if os.path.exists(src_dir):
         shutil.rmtree(src_dir)
@@ -140,6 +130,40 @@ def main():
 
     except Exception as e:
         print(f"\nAn error occurred during generation: {e}")
+
+def Secondary(path, output_path):
+    print(f"Executing secondary functionality...")
+    print(f"Input path: {path}")
+    print(f"Output path: {output_path}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="CodeForge: Intelligent code manipulation using LLMs."
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True, help="Sub-commands")
+
+    # AUTODOC
+    autodoc_parser = subparsers.add_parser("autodoc", help="Generate readme documentation for a github repository.")
+    autodoc_parser.add_argument("repo", nargs="?", default="https://github.com/Perceptronic-Systems/CodeForge", 
+                                help="The GitHub repository URL to clone.")
+    autodoc_parser.add_argument("output", nargs="?", default=os.path.expanduser("~/generated_doc.md"), 
+                                help="The output path for the generated markdown file.")
+
+    # SECONDARY
+    secondary_parser = subparsers.add_parser("secondary", help="Execute secondary tool logic.")
+    secondary_parser.add_argument("path", help="The input file or directory path.")
+    secondary_parser.add_argument("output_path", help="The output path target.")
+
+    args = parser.parse_args()
+
+    # ROUTING
+    if args.command == "autodoc":
+        AutoDoc(args.repo, args.output)
+    elif args.command == "secondary":
+        Secondary(args.path, args.output_path)
+
+    
 
 if __name__ == "__main__":
     main()
