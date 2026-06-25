@@ -142,6 +142,7 @@ def Subdivide(path, output_path):
         body: str = Field(description="The full code content of the file.")
 
     class FileExport(BaseModel):
+        architecture_blueprint: str = Field(description="Step-by-step architectural breakdown of how the monolith will be split, including a dependency map and explanation of imports.")
         files: List[FileItem]
 
     model = "gemma4:e2b"
@@ -180,13 +181,20 @@ def Subdivide(path, output_path):
         sys.exit(1)
 
     prompt = (
-        "You are an expert software architect. Your task is to take the provided monolithic "
-        "source code file and subdivide it into a logical, modular structure of multiple files.\n"
-        "Analyze the code, split classes, functions, or modules into separate files, and preserve "
-        "all logic intact. The generated code should function the same as the original, and the collective code-base should be able to be executed via the original source file name.\nEnsure proper import statements are added so the files can work together.\n\n"
-        "Here is the source code to subdivide:\n"
-        f"```\n{source_code_content}\n```"
-    )
+    "You are an expert software architect specializing in refactoring monolithic code into highly modular, clean codebases.\n\n"
+    "Your objective is to ingest the monolithic code provided below and subdivide it into logical, modular files (e.g., separating utilities, models, core logic, and the main execution entrypoint).\n\n"
+    "CRITICAL REQUIREMENTS:\n"
+    "1. PRESERVE LOGIC EXACTLY: Do not omit, truncate, or summarize any code inside the file bodies. Every single line of executable logic, variable declaration, and function must be accounted for.\n"
+    "2. ENTRYPOINT INTEGRITY: The original entrypoint script logic must remain intact, importing the newly created modules so that the codebase can still be executed via the original source file name.\n"
+    "3. EXPLICIT IMPORTS: Ensure all newly created files have correct, relative import statements so they seamlessly resolve dependencies between one another.\n"
+    "4. NO PLACEHOLDERS: Do not use comments like '# ... rest of code goes here ...'. Write the code in full.\n\n"
+    "INSTRUCTIONS FOR YOUR RESPONSE:\n"
+    "- First, use the 'architecture_blueprint' field to map out your refactoring strategy and explain how modules will interact.\n"
+    "- Second, populate the 'files' array with the complete, functional code for each file.\n\n"
+    "Here is the source code to subdivide:\n"
+    f"```\n{source_code_content}\n```"
+)
+    print(f"Rough estimated token count: {len(prompt) // 4}")
 
     try:
         stream = client.chat(
